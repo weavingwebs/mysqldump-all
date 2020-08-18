@@ -9,6 +9,9 @@ import (
 
 type MySQL struct {
 	dockerContainer string
+	host            string
+	user            string
+	pass            string
 }
 
 type MySQLCmd struct {
@@ -16,20 +19,42 @@ type MySQLCmd struct {
 	Proc  *exec.Cmd
 }
 
-func NewMySQL(dockerContainer string) *MySQL {
+type NewMysqlOpts struct {
+	DockerContainer string
+	Host            string
+	User            string
+	Pass            string
+}
+
+func NewMySQL(opts NewMysqlOpts) *MySQL {
 	return &MySQL{
-		dockerContainer: dockerContainer,
+		dockerContainer: opts.DockerContainer,
+		host:            opts.DockerContainer,
+		user:            opts.User,
+		pass:            opts.Pass,
 	}
 }
 
 func (m *MySQL) Exec(ctx context.Context, cmd string, args []string) *MySQLCmd {
+	user := m.user
+	if user == "" {
+		user = "root"
+	}
+	pass := m.pass
+	if pass == "" {
+		pass = `"$MYSQL_ROOT_PASSWORD"`
+	}
+	if m.host != "" {
+		args = append([]string{"-h" + m.host}, args...)
+	}
+	args = append([]string{"-u" + user, "-p" + pass}, args...)
+
 	var proc *exec.Cmd
 	if m.dockerContainer == "" {
-		args = append([]string{"-uroot", `-p"$MYSQL_ROOT_PASSWORD"`}, args...)
 		proc = exec.CommandContext(ctx, cmd, args...)
 	} else {
 		mysql := fmt.Sprintf(
-			`%s -uroot -p"$MYSQL_ROOT_PASSWORD" %s`,
+			`%s %s`,
 			cmd,
 			strings.Join(args, " "),
 		)

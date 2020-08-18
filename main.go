@@ -19,9 +19,13 @@ func main() {
 	rootCmd := &cobra.Command{
 		Use: "mysqldump-all",
 	}
+	mysqlOpts := NewMysqlOpts{}
+	rootCmd.PersistentFlags().StringVar(&mysqlOpts.DockerContainer, "docker", "", "docker container name to use for mysql")
+	rootCmd.PersistentFlags().StringVar(&mysqlOpts.Host, "host", "", "mysql host")
+	rootCmd.PersistentFlags().StringVar(&mysqlOpts.User, "user", "root", "mysql username")
+	rootCmd.PersistentFlags().StringVar(&mysqlOpts.Pass, "pass", "", "mysql password")
 
 	var noLock []string
-	var dockerContainer string
 	var includeMysql bool
 	var noDrop bool
 	dumpCmd := &cobra.Command{
@@ -33,13 +37,12 @@ func main() {
 			}
 
 			return DumpAll(cmd.Context(), dest, DumpOptions{
-				Mysql:   NewMySQL(dockerContainer),
+				Mysql:   NewMySQL(mysqlOpts),
 				NoLocks: noLock,
 			})
 		},
 	}
 	dumpCmd.Flags().StringSliceVar(&noLock, "no-lock", []string{}, "comma separated list of database names that should not be locked during dump")
-	dumpCmd.Flags().StringVar(&dockerContainer, "docker", "", "docker container name to use for mysql")
 	rootCmd.AddCommand(dumpCmd)
 
 	importCmd := &cobra.Command{
@@ -51,13 +54,12 @@ func main() {
 			}
 
 			return ImportAll(cmd.Context(), src, ImportOptions{
-				Mysql:             NewMySQL(dockerContainer),
+				Mysql:             NewMySQL(mysqlOpts),
 				IncludeMysqlTable: includeMysql,
 				NoDrop:            noDrop,
 			})
 		},
 	}
-	importCmd.Flags().StringVar(&dockerContainer, "docker", "", "docker container name to use for mysql")
 	importCmd.Flags().BoolVar(&includeMysql, "include-mysql", false, "import the mysql table as well if present (WARNING: Only do this when restoring to the same version of MySQL or MariaDB).")
 	importCmd.Flags().BoolVar(&noDrop, "no-drop", false, "do not drop databases before importing")
 	rootCmd.AddCommand(importCmd)
