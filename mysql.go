@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"golang.org/x/crypto/ssh/terminal"
 	"os/exec"
 	"strings"
+	"syscall"
 )
 
 type MySQL struct {
@@ -27,9 +29,14 @@ type NewMysqlOpts struct {
 }
 
 func NewMySQL(opts NewMysqlOpts) *MySQL {
+	if opts.DockerContainer == "" && opts.Pass == "" {
+		fmt.Print("Password: ")
+		pass, _ := terminal.ReadPassword(syscall.Stdin)
+		opts.Pass = strings.TrimSpace(string(pass))
+	}
 	return &MySQL{
 		dockerContainer: opts.DockerContainer,
-		host:            opts.DockerContainer,
+		host:            opts.Host,
 		user:            opts.User,
 		pass:            opts.Pass,
 	}
