@@ -13,14 +13,15 @@ import (
 )
 
 type ImportOptions struct {
-	Mysql *MySQL
+	Mysql             *MySQL
+	IncludeMysqlTable bool
 }
 
 func importDb(ctx context.Context, db string, filePath string, opts ImportOptions) error {
 	logrus.Infof("Importing %s -> %s", filePath, db)
 
 	// Create DB.
-	if db != "mysql" && db != "performance_schema" && db != "information_schema" {
+	if !(db == "mysql" || db == "performance_schema" || db == "information_schema") {
 		sql := fmt.Sprintf(
 			`"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"`,
 			db,
@@ -88,6 +89,14 @@ func ImportAll(ctx context.Context, src string, opts ImportOptions) error {
 			continue
 		}
 		db := matches[1]
+
+		if db == "performance_schema" || db == "information_schema" {
+			logrus.Debugf("Ignoring %s table", db)
+		}
+		if db == "mysql" && !opts.IncludeMysqlTable {
+			logrus.Debug("Ignoring mysql table")
+			continue
+		}
 
 		if err := importDb(ctx, db, filePath, opts); err != nil {
 			return err
