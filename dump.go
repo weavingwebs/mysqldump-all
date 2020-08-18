@@ -85,7 +85,7 @@ func DumpAll(ctx context.Context, dest string, opts DumpOptions) error {
 			return errors.Wrap(err, "failed to read database list")
 		}
 		line = strings.TrimSpace(line)
-		if line != "" {
+		if line != "" && !(line == "performance_schema" || line == "information_schema") {
 			dbs = append(dbs, line)
 		}
 	}
