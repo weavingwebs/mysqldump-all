@@ -23,6 +23,7 @@ func main() {
 	var noLock []string
 	var dockerContainer string
 	var includeMysql bool
+	var noDrop bool
 	dumpCmd := &cobra.Command{
 		Use: "dump",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -52,11 +53,13 @@ func main() {
 			return ImportAll(cmd.Context(), src, ImportOptions{
 				Mysql:             NewMySQL(dockerContainer),
 				IncludeMysqlTable: includeMysql,
+				NoDrop:            noDrop,
 			})
 		},
 	}
 	importCmd.Flags().StringVar(&dockerContainer, "docker", "", "docker container name to use for mysql")
-	importCmd.Flags().BoolVar(&includeMysql, "include-mysql", false, "import the mysql table as well if present (WARNING: Only do this when restoring to the same version of MySQL or MariaDB.")
+	importCmd.Flags().BoolVar(&includeMysql, "include-mysql", false, "import the mysql table as well if present (WARNING: Only do this when restoring to the same version of MySQL or MariaDB).")
+	importCmd.Flags().BoolVar(&noDrop, "no-drop", false, "do not drop databases before importing")
 	rootCmd.AddCommand(importCmd)
 
 	if err := rootCmd.Execute(); err != nil {

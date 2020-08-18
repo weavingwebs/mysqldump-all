@@ -15,6 +15,7 @@ import (
 type ImportOptions struct {
 	Mysql             *MySQL
 	IncludeMysqlTable bool
+	NoDrop            bool
 }
 
 func importDb(ctx context.Context, db string, filePath string, opts ImportOptions) error {
@@ -22,11 +23,19 @@ func importDb(ctx context.Context, db string, filePath string, opts ImportOption
 
 	// Create DB.
 	if !(db == "mysql" || db == "performance_schema" || db == "information_schema") {
-		sql := fmt.Sprintf(
-			`"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"`,
-			db,
+		sql := `"`
+		if !opts.NoDrop {
+			sql += fmt.Sprintf(
+				`DROP DATABASE IF EXISTS %s;`,
+				db,
+			)
+		}
+		sql += fmt.Sprintf(
+			`CREATE DATABASE IF NOT EXISTS %s CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`,
 			db,
 		)
+		sql += `"`
+
 		proc := opts.Mysql.Exec(ctx, "mysql", []string{"-e", sql})
 		proc.Proc.Stderr = os.Stderr
 		if err := proc.Run(); err != nil {
