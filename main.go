@@ -16,6 +16,10 @@ func main() {
 		FullTimestamp: true,
 	})
 
+	rootCmd := &cobra.Command{
+		Use: "dump",
+	}
+
 	var noLock []string
 	dumpCmd := &cobra.Command{
 		Use: "dump",
@@ -29,12 +33,20 @@ func main() {
 		},
 	}
 	dumpCmd.Flags().StringSliceVar(&noLock, "no-lock", []string{}, "comma separated list of database names that should not be locked during dump")
-
-	rootCmd := &cobra.Command{
-		Use: "dump",
-	}
-
 	rootCmd.AddCommand(dumpCmd)
+
+	importCmd := &cobra.Command{
+		Use: "import",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			src := "dumps"
+			if len(args) > 0 {
+				src = args[0]
+			}
+
+			return ImportAll(cmd.Context(), src)
+		},
+	}
+	rootCmd.AddCommand(importCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		logrus.Fatal(err)
