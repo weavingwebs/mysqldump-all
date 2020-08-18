@@ -8,27 +8,27 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 )
 
-func importDb(ctx context.Context, db string, filePath string) error {
+type ImportOptions struct {
+	Mysql *MySQL
+}
+
+func importDb(ctx context.Context, db string, filePath string, opts ImportOptions) error {
 	logrus.Infof("Importing %s -> %s", filePath, db)
 
 	// Create DB.
-	if db != "mysql" {
-		mysql := fmt.Sprintf(
-			`mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "DROP DATABASE IF EXISTS %s; CREATE DATABASE %s CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"`,
+	if db != "mysql" && db != "performance_schema" && db != "information_schema" {
+		sql := fmt.Sprintf(
+			`"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"`,
 			db,
 			db,
 		)
-		proc := exec.CommandContext(ctx, "docker", "exec", "-i", "mysql", "bash", "-c", mysql)
-		proc.Stderr = os.Stderr
-		if err := proc.Start(); err != nil {
-			return errors.Wrapf(err, "failed to create database: %s", db)
-		}
-		if err := proc.Wait(); err != nil {
+		proc := opts.Mysql.Exec(ctx, "mysql", []string{"-e", sql})
+		proc.Proc.Stderr = os.Stderr
+		if err := proc.Run(); err != nil {
 			return errors.Wrapf(err, "failed to create database: %s", db)
 		}
 	}
@@ -51,18 +51,10 @@ func importDb(ctx context.Context, db string, filePath string) error {
 	defer logIfError(gzipReader.Close)
 	pBarReader := pBar.NewProxyReader(gzipReader)
 
-	mysql := fmt.Sprintf(
-		`mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "%s"`,
-		db,
-	)
-	proc := exec.CommandContext(ctx, "docker", "exec", "-i", "mysql", "bash", "-c", mysql)
-	proc.Stderr = os.Stderr
-	proc.Stdin = pBarReader
-	if err := proc.Start(); err != nil {
-		return errors.Wrapf(err, "failed to import database %s", db)
-	}
-
-	if err := proc.Wait(); err != nil {
+	proc := opts.Mysql.Exec(ctx, "mysql", []string{db})
+	proc.Proc.Stderr = os.Stderr
+	proc.Proc.Stdin = pBarReader
+	if err := proc.Run(); err != nil {
 		return errors.Wrapf(err, "failed to import database %s", db)
 	}
 
@@ -70,7 +62,7 @@ func importDb(ctx context.Context, db string, filePath string) error {
 	return nil
 }
 
-func ImportAll(ctx context.Context, src string) error {
+func ImportAll(ctx context.Context, src string, opts ImportOptions) error {
 	fRegex := regexp.MustCompile(`^(.+)\.sql\.gz`)
 
 	dir, err := os.Open(src)
@@ -97,7 +89,7 @@ func ImportAll(ctx context.Context, src string) error {
 		}
 		db := matches[1]
 
-		if err := importDb(ctx, db, filePath); err != nil {
+		if err := importDb(ctx, db, filePath, opts); err != nil {
 			return err
 		}
 	}

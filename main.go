@@ -17,10 +17,11 @@ func main() {
 	})
 
 	rootCmd := &cobra.Command{
-		Use: "dump",
+		Use: "mysqldump-all",
 	}
 
 	var noLock []string
+	var dockerContainer string
 	dumpCmd := &cobra.Command{
 		Use: "dump",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -29,10 +30,14 @@ func main() {
 				dest = args[0]
 			}
 
-			return DumpAll(cmd.Context(), dest, noLock)
+			return DumpAll(cmd.Context(), dest, DumpOptions{
+				Mysql:   NewMySQL(dockerContainer),
+				NoLocks: noLock,
+			})
 		},
 	}
 	dumpCmd.Flags().StringSliceVar(&noLock, "no-lock", []string{}, "comma separated list of database names that should not be locked during dump")
+	dumpCmd.Flags().StringVar(&dockerContainer, "docker", "", "docker container name to use for mysql")
 	rootCmd.AddCommand(dumpCmd)
 
 	importCmd := &cobra.Command{
@@ -43,9 +48,12 @@ func main() {
 				src = args[0]
 			}
 
-			return ImportAll(cmd.Context(), src)
+			return ImportAll(cmd.Context(), src, ImportOptions{
+				Mysql: NewMySQL(dockerContainer),
+			})
 		},
 	}
+	importCmd.Flags().StringVar(&dockerContainer, "docker", "", "docker container name to use for mysql")
 	rootCmd.AddCommand(importCmd)
 
 	if err := rootCmd.Execute(); err != nil {
