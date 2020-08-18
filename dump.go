@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"github.com/cheggaaa/pb/v3"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -24,6 +25,12 @@ func dumpDB(ctx context.Context, db string, filePath string, noLock bool) error 
 	gzipWriter := gzip.NewWriter(gzipFile)
 	defer logIfError(gzipWriter.Close)
 
+	pBar := pb.New64(0).Set(pb.Bytes, true)
+	pBar = pBar.SetTemplateString(`{{counters . }} @{{speed . }}`)
+	pBar.Start()
+	defer pBar.Finish()
+	pBarWriter := pBar.NewProxyWriter(gzipWriter)
+
 	flags := []string{"--single-transaction", "--quick"}
 	if noLock {
 		flags = append(flags, "--lock-tables=false")
@@ -35,7 +42,7 @@ func dumpDB(ctx context.Context, db string, filePath string, noLock bool) error 
 	)
 	proc := exec.CommandContext(ctx, "docker", "exec", "-i", "mysql", "bash", "-c", mysql)
 	proc.Stderr = os.Stderr
-	proc.Stdout = gzipWriter
+	proc.Stdout = pBarWriter
 	if err := proc.Start(); err != nil {
 		return errors.Wrapf(err, "failed to dump database %s", db)
 	}
@@ -44,6 +51,7 @@ func dumpDB(ctx context.Context, db string, filePath string, noLock bool) error 
 		return errors.Wrapf(err, "failed to dump database %s", db)
 	}
 
+	pBar.Finish()
 	return nil
 }
 

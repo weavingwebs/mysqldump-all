@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"github.com/cheggaaa/pb/v3"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"os"
@@ -37,11 +38,18 @@ func importDb(ctx context.Context, db string, filePath string) error {
 		return errors.Wrapf(err, "failed to open %s", filePath)
 	}
 	defer logIfError(gzipFile.Close)
+
+	pBar := pb.New64(0).Set(pb.Bytes, true)
+	pBar = pBar.SetTemplateString(`{{counters . }} @{{speed . }}`)
+	pBar.Start()
+	defer pBar.Finish()
+
 	gzipReader, err := gzip.NewReader(gzipFile)
 	if err != nil {
 		return errors.Wrapf(err, "failed to open reader for %s", filePath)
 	}
 	defer logIfError(gzipReader.Close)
+	pBarReader := pBar.NewProxyReader(gzipReader)
 
 	mysql := fmt.Sprintf(
 		`mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "%s"`,
@@ -49,7 +57,7 @@ func importDb(ctx context.Context, db string, filePath string) error {
 	)
 	proc := exec.CommandContext(ctx, "docker", "exec", "-i", "mysql", "bash", "-c", mysql)
 	proc.Stderr = os.Stderr
-	proc.Stdin = gzipReader
+	proc.Stdin = pBarReader
 	if err := proc.Start(); err != nil {
 		return errors.Wrapf(err, "failed to import database %s", db)
 	}
@@ -58,6 +66,7 @@ func importDb(ctx context.Context, db string, filePath string) error {
 		return errors.Wrapf(err, "failed to import database %s", db)
 	}
 
+	pBar.Finish()
 	return nil
 }
 
