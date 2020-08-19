@@ -58,7 +58,12 @@ func (m *MySQL) Exec(ctx context.Context, cmd string, args []string) *MySQLCmd {
 
 	var proc *exec.Cmd
 	if m.dockerContainer == "" {
-		proc = exec.CommandContext(ctx, cmd, args...)
+		// Unquote values, exec will escape for us.
+		cleanArgs := make([]string, len(args))
+		for i, a := range args {
+			cleanArgs[i] = strings.Trim(a, `"`)
+		}
+		proc = exec.CommandContext(ctx, cmd, cleanArgs...)
 	} else {
 		mysql := fmt.Sprintf(
 			`%s %s`,
