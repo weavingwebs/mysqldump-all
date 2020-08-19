@@ -7,9 +7,12 @@ import (
 	"github.com/cheggaaa/pb/v3"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
+	"time"
 )
 
 type ImportOptions struct {
@@ -85,6 +88,8 @@ func ImportAll(ctx context.Context, src string, opts ImportOptions) error {
 	}
 
 	imported := 0
+	start := time.Now()
+	timings := make(Timings, 0)
 	for _, file := range files {
 		select {
 		case <-ctx.Done():
@@ -108,12 +113,24 @@ func ImportAll(ctx context.Context, src string, opts ImportOptions) error {
 			continue
 		}
 
+		dbStart := time.Now()
 		if err := importDb(ctx, db, filePath, opts); err != nil {
 			return err
 		}
+		timings = append(timings, Timing{Label: db, Duration: time.Since(dbStart)})
 		imported++
 	}
 
-	logrus.Infof("Imported %d databases 👍", imported)
+	logrus.Infof("Imported %d databases in %s 👍", imported, time.Since(start))
+
+	sort.Sort(sort.Reverse(timings))
+	max := math.Min(float64(len(timings)), 5)
+	msg := "Slowest dbs:\n"
+	for i := 0; i < int(max); i++ {
+		msg += "- " + timings[i].String() + "\n"
+	}
+	msg += "\n"
+	logrus.Info(msg)
+
 	return nil
 }

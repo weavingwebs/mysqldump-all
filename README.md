@@ -10,7 +10,7 @@ go build
 
 ```bash
 # Dump data.
-MYSQL_ROOT_PASSWORD="[pass]" mysqldump-all dump ~/backups
+mysqldump-all dump ~/backups
 
 # Import into docker.
 mysqldump-all import --docker="mysql" ~/backups

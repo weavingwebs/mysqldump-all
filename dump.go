@@ -8,9 +8,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 )
 
 type DumpOptions struct {
@@ -99,13 +102,27 @@ func DumpAll(ctx context.Context, dest string, opts DumpOptions) error {
 	logrus.Infof("Found %d databases", len(dbs))
 
 	// Dump each database.
+	start := time.Now()
+	timings := make(Timings, 0)
 	for _, db := range dbs {
 		fp := filepath.Join(dest, db+".sql.gz")
+		dbStart := time.Now()
 		if err := dumpDB(ctx, db, fp, opts); err != nil {
 			return err
 		}
+		timings = append(timings, Timing{Label: db, Duration: time.Since(dbStart)})
 	}
 
-	logrus.Infof("Dumped %d databases 👍", len(dbs))
+	logrus.Infof("Dumped %d databases in %s 👍", len(dbs), time.Since(start))
+
+	sort.Sort(sort.Reverse(timings))
+	max := math.Min(float64(len(timings)), 5)
+	msg := "Slowest dbs:\n"
+	for i := 0; i < int(max); i++ {
+		msg += "- " + timings[i].String() + "\n"
+	}
+	msg += "\n"
+	logrus.Info(msg)
+
 	return nil
 }
