@@ -20,7 +20,7 @@ mysqldump-all import --docker="mysql" ~/backups
 
 ```bash
 # Backup without locking certain DBs.
-mysqldump-all dump --docker="mysql" --no-lock="big_db_1,big_db_2" ~/backups
+mysqldump-all dump --docker="mysql" --no-locks="big_db_1,big_db_2" ~/backups
 
 # Restore everything, including users (not recommended if restoring to a different MySQL version).
 mysqldump-all import --docker="mysql" --include-mysql ~/backups

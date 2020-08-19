@@ -14,16 +14,19 @@ import (
 )
 
 type DumpOptions struct {
+	NoLock  bool
 	NoLocks []string
 	Mysql   *MySQL
 }
 
 func dumpDB(ctx context.Context, db string, filePath string, opts DumpOptions) error {
-	noLock := false
-	for _, l := range opts.NoLocks {
-		if l == db {
-			noLock = true
-			break
+	noLock := opts.NoLock
+	if !noLock {
+		for _, l := range opts.NoLocks {
+			if l == db {
+				noLock = true
+				break
+			}
 		}
 	}
 

@@ -25,7 +25,8 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&mysqlOpts.User, "user", "root", "mysql username")
 	rootCmd.PersistentFlags().StringVar(&mysqlOpts.Pass, "pass", "", "mysql password")
 
-	var noLock []string
+	var noLock bool
+	var noLocks []string
 	var includeMysql bool
 	var noDrop bool
 	dumpCmd := &cobra.Command{
@@ -38,11 +39,13 @@ func main() {
 
 			return DumpAll(cmd.Context(), dest, DumpOptions{
 				Mysql:   NewMySQL(mysqlOpts),
-				NoLocks: noLock,
+				NoLock:  noLock,
+				NoLocks: noLocks,
 			})
 		},
 	}
-	dumpCmd.Flags().StringSliceVar(&noLock, "no-lock", []string{}, "comma separated list of database names that should not be locked during dump")
+	dumpCmd.Flags().BoolVar(&noLock, "no-lock", false, "do not lock any databases while dumping")
+	dumpCmd.Flags().StringSliceVar(&noLocks, "no-locks", []string{}, "comma separated list of database names that should not be locked during dump")
 	rootCmd.AddCommand(dumpCmd)
 
 	importCmd := &cobra.Command{
