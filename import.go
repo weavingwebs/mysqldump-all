@@ -84,6 +84,7 @@ func ImportAll(ctx context.Context, src string, opts ImportOptions) error {
 		return errors.Wrapf(err, "failed to read directory contents of %s", src)
 	}
 
+	imported := 0
 	for _, file := range files {
 		select {
 		case <-ctx.Done():
@@ -110,7 +111,9 @@ func ImportAll(ctx context.Context, src string, opts ImportOptions) error {
 		if err := importDb(ctx, db, filePath, opts); err != nil {
 			return err
 		}
+		imported++
 	}
 
+	logrus.Infof("Imported %d databases 👍", imported)
 	return nil
 }

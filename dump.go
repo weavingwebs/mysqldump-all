@@ -106,5 +106,6 @@ func DumpAll(ctx context.Context, dest string, opts DumpOptions) error {
 		}
 	}
 
+	logrus.Infof("Dumped %d databases 👍", len(dbs))
 	return nil
 }
