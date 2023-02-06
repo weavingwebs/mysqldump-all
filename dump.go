@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"github.com/cheggaaa/pb/v3"
+	"github.com/mattn/go-isatty"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -42,11 +43,13 @@ func dumpDB(ctx context.Context, db string, filePath string, opts DumpOptions) e
 	gzipWriter := gzip.NewWriter(gzipFile)
 	defer logIfError(gzipWriter.Close)
 
-	pBar := pb.New64(0).Set(pb.Bytes, true)
-	pBar = pBar.SetTemplateString(`{{counters . }} @{{speed . }}`)
-	pBar.Start()
-	defer pBar.Finish()
-	pBarWriter := pBar.NewProxyWriter(gzipWriter)
+	var pBar *pb.ProgressBar
+	if isatty.IsTerminal(os.Stdout.Fd()) {
+		pBar = pb.New64(0).Set(pb.Bytes, true)
+		pBar = pBar.SetTemplateString(`{{counters . }} @{{speed . }}`)
+		pBar.Start()
+		defer pBar.Finish()
+	}
 
 	args := []string{"--single-transaction", "--quick"}
 	if noLock {
@@ -55,12 +58,18 @@ func dumpDB(ctx context.Context, db string, filePath string, opts DumpOptions) e
 	args = append(args, db)
 	proc := opts.Mysql.Exec(ctx, "mysqldump", args)
 	proc.Proc.Stderr = os.Stderr
-	proc.Proc.Stdout = pBarWriter
+	if pBar != nil {
+		proc.Proc.Stdout = pBar.NewProxyWriter(gzipWriter)
+	} else {
+		proc.Proc.Stdout = gzipWriter
+	}
 	if err := proc.Run(); err != nil {
 		return errors.Wrapf(err, "failed to dump database %s", db)
 	}
 
-	pBar.Finish()
+	if pBar != nil {
+		pBar.Finish()
+	}
 	return nil
 }
 
