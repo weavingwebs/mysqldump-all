@@ -24,6 +24,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&mysqlOpts.Host, "host", "", "mysql host")
 	rootCmd.PersistentFlags().StringVar(&mysqlOpts.User, "user", "root", "mysql username")
 	rootCmd.PersistentFlags().StringVar(&mysqlOpts.Pass, "pass", "", "mysql password")
+	rootCmd.PersistentFlags().StringVar(&mysqlOpts.Client, "client", "mysql", "mysql client to use (mysql or mariadb)")
 
 	var noLock bool
 	var noLocks []string

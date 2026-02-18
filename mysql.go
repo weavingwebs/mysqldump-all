@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"golang.org/x/crypto/ssh/terminal"
 	"os/exec"
 	"strings"
 	"syscall"
+
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 type MySQL struct {
@@ -14,6 +15,7 @@ type MySQL struct {
 	host            string
 	user            string
 	pass            string
+	client          string
 }
 
 type MySQLCmd struct {
@@ -26,6 +28,7 @@ type NewMysqlOpts struct {
 	Host            string
 	User            string
 	Pass            string
+	Client          string
 }
 
 func NewMySQL(opts NewMysqlOpts) *MySQL {
@@ -39,10 +42,19 @@ func NewMySQL(opts NewMysqlOpts) *MySQL {
 		host:            opts.Host,
 		user:            opts.User,
 		pass:            opts.Pass,
+		client:          opts.Client,
 	}
 }
 
 func (m *MySQL) Exec(ctx context.Context, cmd string, args []string) *MySQLCmd {
+	if m.client == "mariadb" {
+		if cmd == "mysqldump" {
+			cmd = "mariadb-dump --skip-opt"
+		} else {
+			cmd = strings.ReplaceAll(cmd, "mysql", "mariadb")
+		}
+	}
+
 	user := m.user
 	if user == "" {
 		user = "root"
